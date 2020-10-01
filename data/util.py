@@ -55,7 +55,7 @@ def _name_and_text(utt):
         r"(http|https)://.*\s" : " ",
         r"(http|https)://.*" : " ",
         "\[.*\]\(" : " ",
-        r".(\n+)" : ". ",
+        r"\.(\n+)" : ". ",
         r"(\n+)" : ". "
     }
     for pattern, repl in regex_patterns.items():
@@ -86,7 +86,7 @@ def _get_convo_helper(conv, root_id, indent, reply_to_dict, utt_info_func, limit
             reply_to_dict=reply_to_dict, utt_info_func=utt_info_func, limit=limit
         )
 
-    conv_str = " "*indent + utt_info_func(conv.get_utterance(root_id)) + "\n"
+    conv_str = " "*indent + utt_info_func(conv.get_utterance(root_id)) + "\n\n"
     conv_str = conv_str + sub_conv_str
     return conv_str
 
@@ -116,3 +116,33 @@ def plot_conv_lengths(conv_lengths, low, high, bins=30):
         conv_lengths, bins=bins, range=(low, high)
     )
     plt.show()
+
+def num_convs_between(conv_lengths, low, high):
+    '''
+    Returns the number of conversations that have lengths between
+    low and high, inclusive
+    '''
+    num_convs = 0
+    for conv_length in conv_lengths:
+        if conv_length >= low and conv_length <= high:
+            num_convs += 1
+
+    return num_convs
+
+def check_corpus_integrity(corpus):
+    for conv_id in corpus.get_conversation_ids():
+        conv = corpus.get_conversation(conv_id)
+        if not conv.check_integrity(verbose=False):
+            print("{} does not pass".format(conv.id))
+            return False
+
+    print("Corpus passes")
+    return True
+
+def count_unclean_corpus(corpus):
+    count = 0
+    for conv in corpus.iter_conversations():
+        if not conv.check_integrity(verbose=False):
+            count += 1
+
+    return count
