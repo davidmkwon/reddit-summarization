@@ -108,13 +108,29 @@ def get_conversation_complete(conv, utt_info_func=_name_and_text, limit=None):
     )
     return conv_str
 
-def plot_conv_lengths(conv_lengths, low, high, bins=30):
+def plot_conv_lengths_histogram(conv_lengths, low, high, bins=30):
     '''
     Plots a histogram of the conv length distribution
     '''
     plt.hist(
         conv_lengths, bins=bins, range=(low, high)
     )
+    plt.show()
+
+def plot_conv_lengths_cdf(conv_lengths, low=0, high=float('inf')):
+    '''
+    Plots a cdf of the conv length distribution that falls between
+    low and high, inclusive
+    '''
+    import numpy as np
+
+    CX = np.array(conv_lengths)
+    CX = CX[(CX >= low) & (CX <= high)]
+    CX.sort()
+    CY = np.array(CX)
+    CY = CY / CY.sum()
+    CY = np.cumsum(CY)
+    plt.plot(CX, CY)
     plt.show()
 
 def num_convs_between(conv_lengths, low, high):
@@ -129,16 +145,6 @@ def num_convs_between(conv_lengths, low, high):
 
     return num_convs
 
-def check_corpus_integrity(corpus):
-    for conv_id in corpus.get_conversation_ids():
-        conv = corpus.get_conversation(conv_id)
-        if not conv.check_integrity(verbose=False):
-            print("{} does not pass".format(conv.id))
-            return False
-
-    print("Corpus passes")
-    return True
-
 def count_unclean_corpus(corpus):
     count = 0
     for conv in corpus.iter_conversations():
@@ -146,3 +152,64 @@ def count_unclean_corpus(corpus):
             count += 1
 
     return count
+
+def num_deleted_utterances(corpus):
+    '''
+    Count the total number of utterances that are "[deleted]"
+    '''
+    count = 0
+    for conv in corpus.iter_conversations():
+        for utt in conv.iter_utterances():
+            if len(utt.text) == 9 and utt.text == "[deleted]":
+                count += 1
+
+    return count
+
+def num_deleted_convs(corpus):
+    '''
+    Count the number of conversations that have a "[deleted]" utterance
+    and the lengths of these conversations
+    '''
+    count = 0
+    conv_lengths = []
+    for conv in corpus.iter_conversations():
+        for utt in conv.iter_utterances():
+            if len(utt.text) == 9 and utt.text == "[deleted]":
+                conv_lengths.append(len(conv.get_utterance_ids()))
+                count += 1
+                break
+
+    return count, conv_lengths
+
+def num_removed_convs(corpus):
+    '''
+    Count the number of conversations that have a "[removed]" utterance
+    and the lengths of these conversations
+    '''
+    count = 0
+    conv_lengths = []
+    for conv in corpus.iter_conversations():
+        for utt in conv.iter_utterances():
+            if len(utt.text) == 9 and utt.text == "[removed]":
+                conv_lengths.append(len(conv.get_utterance_ids()))
+                count += 1
+                break
+
+    return count, conv_lengths
+
+def num_deleted_root_utterances(corpus):
+    '''
+    Return the number of conversations where the root (first)
+    comment is "[deleted]"
+    '''
+    idx = 0
+    count = 0
+    indexes = []
+    for conv in corpus.iter_conversations():
+        root_utt = [utt for utt in conv.iter_utterances() if utt.reply_to is None][0]
+        if len(root_utt.text) == 9 and root_utt.text == "[deleted]":
+            count += 1
+            indexes.append(idx)
+        idx += 1
+
+    return count, indexes
