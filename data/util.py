@@ -1,4 +1,5 @@
 import re
+import random
 
 import convokit
 import matplotlib.pyplot as plt
@@ -42,15 +43,14 @@ def mean_std(conv_lengths):
 
     return mean_length, variance_length**0.5
 
-def _name_and_text(utt):
+def regex_filter(utt):
     '''
-    Lambda function used in below methods for determining
-    what utterance details to include
+    Returns a filtered utterance text through a series
+    of regex replacements.
     '''
-    res = utt.speaker.id + ": " + utt.text
-
     # set of regex patterns to check with--make sure these aren't too costly
     # r"(http|ftp|https)://([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?"
+    res = utt.text
     regex_patterns = {
         r"(http|https)://.*\s" : " ",
         r"(http|https)://.*" : " ",
@@ -62,6 +62,25 @@ def _name_and_text(utt):
         res = re.sub(pattern, repl, res)
 
     return res
+
+def _name_and_text(utt):
+    '''
+    Lambda function used in below methods for determining
+    what utterance details to include
+    '''
+    res = utt.speaker.id + ": " + regex_filter(utt)
+
+    return res
+
+def execute_regex(corpus):
+    '''
+    Mutate the corpus by executing the regex replacements
+    on all utterances
+    '''
+    for utt_id in corpus.get_utterance_ids():
+        utt = corpus.get_utterance(utt_id)
+        utt_text = regex_filter(utt)
+        utt.text = utt_text
 
 def print_conversation_complete(conv, utt_info_func=_name_and_text):
     '''
@@ -213,3 +232,30 @@ def num_deleted_root_utterances(corpus):
         idx += 1
 
     return count, indexes
+
+def get_convs_with_length(corpus, length):
+    '''
+    Return a list of conversation objects with length = length
+    '''
+    res = []
+    for conv in corpus.iter_conversations():
+        if len(conv.get_utterance_ids()) == length:
+            res.append(conv)
+
+    return res
+
+def get_conv_utt_lengths_avg(corpus, length):
+    '''
+    Returns a list of the average utterance length in conversations
+    with length = length
+    '''
+    convs = get_convs_with_length(corpus, length)
+    res = []
+    for conv in convs:
+        avg = 0
+        for utt in conv.iter_utterances():
+            avg += len(utt.text.split(" "))
+        avg /= length
+        res.append(avg)
+
+    return res
